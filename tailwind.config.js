@@ -14,5 +14,5 @@ module.exports = {
       },
     },
   },
-  plugins: [require("shadcn/ui")],
+  plugins: [],
 };

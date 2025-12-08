@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,17 +17,91 @@ interface Task {
   title: string;
 }
 
-const initialTasks: Task[] = [
-  { id: "1", title: "Write Frontend code" },
-  { id: "2", title: "Learn Nodejs" },
-  { id: "3", title: "Docker bhi padhlo" },
-  { id: "4", title: "Samjhdaar bano" },
-];
+const API_BASE_URL = "http://localhost:3001/api";
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch tasks from backend on component mount
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE_URL}/tasks`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch tasks");
+      }
+      const data = await response.json();
+      setTasks(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("Error fetching tasks:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) return;
+
+    try {
+      setError(null);
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: newTaskTitle.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create task");
+      }
+
+      const newTask = await response.json();
+      setTasks([...tasks, newTask]);
+      setNewTaskTitle("");
+      setIsDialogOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create task");
+      console.error("Error creating task:", err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      setError(null);
+      const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete task");
+      }
+
+      setTasks(tasks.filter((task) => task.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete task");
+      console.error("Error deleting task:", err);
+    }
+  };
+
+  const handleEdit = (task: Task) => {
+    // For now, just open dialog with task title pre-filled
+    // You can enhance this later with a proper edit dialog
+    setNewTaskTitle(task.title);
+    setIsDialogOpen(true);
+    // TODO: Implement proper edit functionality
+  };
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -54,38 +128,57 @@ export default function Home() {
           </div>
 
           <div className="divide-y divide-border">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="grid grid-cols-[1fr_auto] gap-4 px-6 py-4"
-              >
-                <div className="flex items-center gap-3">
-                  <Checkbox id={`task-${task.id}`} />
-                  <label
-                    htmlFor={`task-${task.id}`}
-                    className="text-foreground cursor-pointer"
-                  >
-                    {task.title}
-                  </label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+            {loading && (
+              <div className="px-6 py-8 text-center text-muted-foreground">
+                Loading tasks...
               </div>
-            ))}
+            )}
+            {error && (
+              <div className="px-6 py-8 text-center text-red-500">
+                Error: {error}
+              </div>
+            )}
+            {!loading && !error && tasks.length === 0 && (
+              <div className="px-6 py-8 text-center text-muted-foreground">
+                No tasks yet. Add your first task!
+              </div>
+            )}
+            {!loading &&
+              !error &&
+              tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="grid grid-cols-[1fr_auto] gap-4 px-6 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox id={`task-${task.id}`} />
+                    <label
+                      htmlFor={`task-${task.id}`}
+                      className="text-foreground cursor-pointer"
+                    >
+                      {task.title}
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                      onClick={() => handleEdit(task)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                      onClick={() => handleDelete(task.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -101,19 +194,7 @@ export default function Home() {
                 className="flex-1"
               />
               <Button
-                onClick={() => {
-                  if (newTaskTitle.trim()) {
-                    setTasks([
-                      ...tasks,
-                      {
-                        id: Date.now().toString(),
-                        title: newTaskTitle.trim(),
-                      },
-                    ]);
-                    setNewTaskTitle("");
-                    setIsDialogOpen(false);
-                  }
-                }}
+                onClick={handleCreateTask}
                 className="bg-foreground text-background hover:bg-foreground/90"
               >
                 SUBMIT

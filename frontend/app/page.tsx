@@ -20,7 +20,7 @@ interface Task {
   updatedAt: string;
 }
 
-const API_BASE_URL = "http://localhost:3001/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -166,7 +166,7 @@ export default function Home() {
       <div className="mx-auto max-w-4xl">
         <h1 className="mb-8 text-center text-3xl font-semibold text-foreground">
           NotSoSimple ToDo
-        </h1>
+          </h1>
 
         <div className="mb-8 flex justify-center">
           <Button

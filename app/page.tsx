@@ -15,6 +15,9 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 interface Task {
   id: string;
   title: string;
+  completed: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const API_BASE_URL = "http://localhost:3001/api";
@@ -23,6 +26,7 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +58,7 @@ export default function Home() {
 
     try {
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/tasks`, {
+      const response = await fetch(`${API_BASE_URL}/tasks/create-task`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -67,13 +71,61 @@ export default function Home() {
         throw new Error(errorData.error || "Failed to create task");
       }
 
-      const newTask = await response.json();
-      setTasks([...tasks, newTask]);
+      const updatedTasks = await response.json();
+      setTasks(updatedTasks);
       setNewTaskTitle("");
       setIsDialogOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task");
       console.error("Error creating task:", err);
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    if (!newTaskTitle.trim() || !editingTaskId) return;
+
+    try {
+      setError(null);
+      const response = await fetch(`${API_BASE_URL}/tasks/update-task`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: editingTaskId, title: newTaskTitle.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update task");
+      }
+
+      const updatedTasks = await response.json();
+      setTasks(updatedTasks);
+      setNewTaskTitle("");
+      setEditingTaskId(null);
+      setIsDialogOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update task");
+      console.error("Error updating task:", err);
+    }
+  };
+
+  const handleToggleComplete = async (id: string) => {
+    try {
+      setError(null);
+      const response = await fetch(`${API_BASE_URL}/tasks/${id}/complete`, {
+        method: "PATCH",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle task completion");
+      }
+
+      const updatedTasks = await response.json();
+      setTasks(updatedTasks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to toggle completion");
+      console.error("Error toggling completion:", err);
     }
   };
 
@@ -96,11 +148,17 @@ export default function Home() {
   };
 
   const handleEdit = (task: Task) => {
-    // For now, just open dialog with task title pre-filled
-    // You can enhance this later with a proper edit dialog
     setNewTaskTitle(task.title);
+    setEditingTaskId(task.id);
     setIsDialogOpen(true);
-    // TODO: Implement proper edit functionality
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setNewTaskTitle("");
+      setEditingTaskId(null);
+    }
   };
 
   return (
@@ -151,10 +209,14 @@ export default function Home() {
                   className="grid grid-cols-[1fr_auto] gap-4 px-6 py-4"
                 >
                   <div className="flex items-center gap-3">
-                    <Checkbox id={`task-${task.id}`} />
+                    <Checkbox 
+                      id={`task-${task.id}`}
+                      checked={task.completed}
+                      onCheckedChange={() => handleToggleComplete(task.id)}
+                    />
                     <label
                       htmlFor={`task-${task.id}`}
-                      className="text-foreground cursor-pointer"
+                      className={`text-foreground cursor-pointer ${task.completed ? "line-through opacity-60" : ""}`}
                     >
                       {task.title}
                     </label>
@@ -181,10 +243,10 @@ export default function Home() {
               ))}
           </div>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Add New Task</DialogTitle>
+              <DialogTitle>{editingTaskId ? "Edit Task" : "Add New Task"}</DialogTitle>
             </DialogHeader>
             <div className="flex gap-2 py-4">
               <Input
@@ -192,12 +254,17 @@ export default function Home() {
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    editingTaskId ? handleUpdateTask() : handleCreateTask();
+                  }
+                }}
               />
               <Button
-                onClick={handleCreateTask}
+                onClick={editingTaskId ? handleUpdateTask : handleCreateTask}
                 className="bg-foreground text-background hover:bg-foreground/90"
               >
-                SUBMIT
+                {editingTaskId ? "UPDATE" : "SUBMIT"}
               </Button>
             </div>
           </DialogContent>

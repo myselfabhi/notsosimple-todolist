@@ -9,7 +9,7 @@ import {
 } from "../controllers/taskController.js";
 
 const router = express.Router();
-
+// all tasks route 
 router.get("/", getAllTasks);
 
 router.post("/create-task", createTask);

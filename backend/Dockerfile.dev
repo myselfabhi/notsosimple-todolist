@@ -1,0 +1,26 @@
+# Development Dockerfile - with hot reload capability
+FROM node:24-alpine
+
+
+
+WORKDIR /app
+
+# Copy package files
+COPY p  ackage.json package-lock.json ./
+
+# Install ALL dependencies (including devDependencies if you add any)
+RUN npm ci
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 3001
+
+# Development mode
+ENV NODE_ENV=development
+
+# Use nodemon or node with watch mode for hot reload
+# For now, just run node (you can add nodemon later)
+CMD ["node", "server.js"]
+

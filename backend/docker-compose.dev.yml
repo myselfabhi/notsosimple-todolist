@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: notsosimple-backend-dev
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - MONGODB_URI=${MONGODB_URI}
+    env_file:
+      - .env
+    # Volume mount for hot reload - syncs local code with container
+    volumes:
+      - .:/app
+      # Exclude node_modules from volume (use container's version)
+      - /app/node_modules
+    restart: unless-stopped
+

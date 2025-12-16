@@ -6,7 +6,7 @@ FROM node:24-alpine
 WORKDIR /app
 
 # Copy package files
-COPY p  ackage.json package-lock.json ./
+COPY package.json package-lock.json ./
 
 # Install ALL dependencies (including devDependencies if you add any)
 RUN npm ci
